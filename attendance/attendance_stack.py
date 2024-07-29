@@ -24,7 +24,9 @@ class AttendanceStack(Stack):
             function_name=construct_id,
             environment= {
                 "DISCORD_PUBLIC_KEY" : os.getenv('DISCORD_PUBLIC_KEY'),
-                "ID" : os.getenv('ID')
+                "ID" : os.getenv('ID'),
+                "AWS_ID" : os.getenv('AWS_ACCESS_KEY_ID'),
+                "AWS_KEY" : os.getenv('AWS_SECRET_ACCESS_KEY'),
             },            
             code=_lambda.DockerImageCode.from_image_asset(
                 directory="src"
