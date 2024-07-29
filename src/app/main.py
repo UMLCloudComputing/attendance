@@ -4,8 +4,12 @@ import json
 from datetime import datetime
 from nacl.signing import VerifyKey
 from nacl.exceptions import BadSignatureError
+import secrets
 
 DISCORD_PUBLIC_KEY = os.environ.get("DISCORD_PUBLIC_KEY")
+
+def generate_code():
+    return secrets.randbelow(900000) + 100000
 
 def verify(event):
     signature = event['headers']['x-signature-ed25519']
@@ -44,16 +48,17 @@ def interact(raw_request):
     data = raw_request["data"]
     token = raw_request["token"]
     id = raw_request["id"]
-
     userID = raw_request["member"]["user"]["id"]
     guildID = raw_request["guild_id"]
+    admin = (int(raw_request["member"]["permissions"]) & 0x8) == 0x8
 
     # The command being executed
     command_name = data["name"]
 
     match command_name:
-        case "ping":
-            send("Pong!", id, token)
+        case "generate":
+            if admin: send(f"Attendence Code is {generate_code()} ", id, token)
+            else: send("Only administrators can generate attendance codes", id, token)
 
 def send(message, id, token):
     url = f"https://discord.com/api/interactions/{id}/{token}/callback"
@@ -61,7 +66,8 @@ def send(message, id, token):
     callback_data = {
         "type": 4,
         "data": {
-            "content": message
+            "content": message,
+            "flags" : 1 << 6
         }
     }
 
@@ -77,7 +83,8 @@ def update(message, token):
 
     # JSON data to send with the request
     data = {
-        "content": message
+        "content": message,
+        "flags" : 1 << 6
     }
 
     # Send the PATCH request
