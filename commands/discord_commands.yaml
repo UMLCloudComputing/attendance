@@ -1,0 +1,26 @@
+# Example of a command file for a discord bot
+
+# - name: generate
+#   description: Chat with the bot or ask questions!
+#   options:
+#     - name: message
+#       description: The message to chat with the bot.
+#       type: 3 # string
+#       required: true
+
+- name: attend
+  description: Attend an event with the given code. You only get three attempts. You can only attend an event once.
+  options:
+    - name: code
+      description: Event Code
+      type: 3 # string
+      required: true
+
+- name: generate
+  description: Generates an attendence code. Can only be used by Guild Administrators
+  
+- name: reset
+  description: Reset a user's statistics
+
+- name: stats
+  description: Get a user's statistics

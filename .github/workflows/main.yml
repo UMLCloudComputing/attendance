@@ -1,0 +1,45 @@
+name: AWS CDK Bootstrap and Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '20'
+
+    - name: Install dependencies
+      run: |
+        npm install -g aws-cdk
+        pip install -r requirements.txt
+
+    - name: Bootstrap
+      run: cdk bootstrap
+      env:
+        APP_NAME: ${{secrets.APP_NAME}}
+        DISCORD_PUBLIC_KEY: ${{ secrets.DISCORD_PUBLIC_KEY }}
+        ID: ${{secrets.ID}}
+
+    - name: Deploy
+      run: cdk deploy --all --require-approval never
+      env:
+        APP_NAME: ${{secrets.APP_NAME}}
+        DISCORD_PUBLIC_KEY: ${{ secrets.DISCORD_PUBLIC_KEY }}
+        ID: ${{secrets.ID}}
+
+    - name: Register & Delete Commands
+      run: cd commands && python3 register_commands.py
+      env:
+        DISCORD_PUBLIC_KEY: ${{ secrets.DISCORD_PUBLIC_KEY }}
+        ID: ${{secrets.ID}}
+        TOKEN: ${{secrets.TOKEN}}
