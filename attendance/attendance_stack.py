@@ -38,3 +38,5 @@ class AttendanceStack(Stack):
             handler=dockerFunc,
             proxy=True,
         )
+
+        table.grant_read_write_data(dockerFunc.role)

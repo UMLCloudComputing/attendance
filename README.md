@@ -4,22 +4,20 @@ The bot follows a slightly different paradigm than most discord bots due to the 
 
 # Setup
 
+Install Dependencies
 `pip install -r requirements.txt`
 `pip install -r requirements-dev.txt`
+
+Create a Discord bot and note down its Public Key, Token and App ID. You can do this by going to the Discord Developer Portal and creating a new application.
 
 Create `.env` file
 
 ```
-# The first two can be made by creating an IAM user with full access to AWS Lambda
-AWS_ACCESS_KEY_ID=<AWS Access Key>
-AWS_SECRET_ACCESS_KEY=<AWS Secret Access Key>
+APP_NAME=<The name of your Cloudformation App Stack. Make sure this is unique>
 
-# For Discord
 ID=<Discord App ID>
 DISCORD_TOKEN=<Refresh the Discord Token in the Developer portal to obtain one>
 DISCORD_PUBLIC_KEY=<The Public Key of the Discord app, can also be found in the portal>
-
-APP_NAME=<The name of your Cloudformation App Stack. Make sure this is unique>
 ```
 
 # Registering and Deleting Commands
@@ -58,7 +56,16 @@ After that you can just run this to deploy.
 
 After you run `cdk deploy` a Docker Container will be built out of the contents of the `src` directory. There is a `Dockerfile` there and a `requirements.txt` that you should modify to include any dependencies you need. The container will be built and uploaded to AWS ECR. The Lambda function will then be updated to use this container.
 
-When you look in the AWS Console, you should look for three things
+After running cdk deploy, you should see something similar to the following output
+  
+```
+Outputs:
+AttendanceBot.API{your APP_NAME}Endpoint254F1E81 = https://42ah7jjudh.execute-api.us-east-1.amazonaws.com/prod/
+```
+
+Set the URL as the interactions endpoint in the Discord Developer Portal.
+
+When you look in the AWS Console, you should look for two things
 
 1. A Lambda function with the name of your `APP_NAME` env variable
 2. A DynamoDB table with the name `Table{APP_NAME}`
