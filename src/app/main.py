@@ -62,9 +62,9 @@ def interact(raw_request):
     command_name = data["name"]
 
     # The parameters of the command
-    parameter1 = data["options"][0]["value"]
-    parameter2 = data["options"][1]["value"]
-    parameter3 = data["options"][2]["value"]
+    # parameter1 = data["options"][0]["value"]
+    # parameter2 = data["options"][1]["value"]
+    # parameter3 = data["options"][2]["value"]
     # The nth parameter is data["options"][n - 1]["value"]
 
 
