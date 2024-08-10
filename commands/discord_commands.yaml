@@ -17,8 +17,21 @@
       required: true
 
 - name: generate
-  description: Generates an attendence code. Can only be used by Guild Administrators
-  
+  description: Generates an attendence code. Can only be used by Guild Administrators.
+  options:
+    - name: expire_in
+      description: Set when the code expires (in minutes from now)
+      type: 4 #int 
+      required: true
+
+- name: validate
+  description: Check if an attendence code is valid. Can only be used by Guild Administrators.
+  options:
+    - name: code
+      description: Event code
+      type: 3 # string
+      required: true
+
 - name: reset
   description: Reset a user's statistics
 

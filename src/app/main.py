@@ -1,15 +1,35 @@
 import os
 import requests
 import json
-from datetime import datetime
+import db
+from datetime import datetime, timedelta
 from nacl.signing import VerifyKey
 from nacl.exceptions import BadSignatureError
 import secrets
 
 DISCORD_PUBLIC_KEY = os.environ.get("DISCORD_PUBLIC_KEY")
+DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 
-def generate_code():
-    return secrets.randbelow(900000) + 100000
+def generate_code(expiration_time: int) -> int:
+    code = secrets.randbelow(900000) + 100000
+
+    expire = datetime.now()
+    expire_time = timedelta(minutes=expiration_time)
+    expire = expire + expire_time
+
+    db.write_code(str(code), expire.strftime(DATETIME_FORMAT))
+    return code
+
+def validate_code(code: str) -> bool:
+    expiration = db.get_code_expiration(code)
+
+    valid = False
+    if expiration == None:
+        return valid
+
+    expiration = datetime.strptime(expiration, DATETIME_FORMAT)
+    valid = datetime.now() < expiration    
+    return valid
 
 def verify(event):
     signature = event['headers']['x-signature-ed25519']
@@ -79,9 +99,15 @@ def interact(raw_request):
     # update(message: str, token)
     match command_name:
         case "generate":
-            if admin: send(f"Attendence Code is {generate_code()} ", id, token)
+            if admin: 
+                minutes = int(data["options"][0]["value"])
+                send(f"Attendence Code is {generate_code(minutes)}.", id, token)
             else: send("Only administrators can generate attendance codes", id, token)
-    
+        case "validate":
+            code = str(data["options"][0]["value"])
+            status = "valid" if validate_code(code) else "invalid"
+            if admin: send(f"{code} is {status}.", id, token)
+            else: send("Only administrators can generate attendance codes", id, token) 
     
 # Send a new message
 def send(message, id, token):

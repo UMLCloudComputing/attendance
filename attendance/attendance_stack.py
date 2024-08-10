@@ -28,6 +28,8 @@ class AttendanceStack(Stack):
                 "ID" : os.getenv('ID'),
                 "AWS_ID" : os.getenv('AWS_ACCESS_KEY_ID'),
                 "AWS_KEY" : os.getenv('AWS_SECRET_ACCESS_KEY'),
+                "DYNAMO_USERTABLE" : user_table.table_name,
+                "DYNAMO_CODETABLE" : code_table.table_name
             },            
             code=_lambda.DockerImageCode.from_image_asset(
                 directory="src"
