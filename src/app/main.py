@@ -10,27 +10,6 @@ import secrets
 DISCORD_PUBLIC_KEY = os.environ.get("DISCORD_PUBLIC_KEY")
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 
-def generate_code(expiration_time: int) -> int:
-    code = secrets.randbelow(900000) + 100000
-
-    expire = datetime.now()
-    expire_time = timedelta(minutes=expiration_time)
-    expire = expire + expire_time
-
-    db.write_code(str(code), expire.strftime(DATETIME_FORMAT))
-    return code
-
-def validate_code(code: str) -> bool:
-    expiration = db.get_code_expiration(code)
-
-    valid = False
-    if expiration == None:
-        return valid
-
-    expiration = datetime.strptime(expiration, DATETIME_FORMAT)
-    valid = datetime.now() < expiration    
-    return valid
-
 def verify(event):
     signature = event['headers']['x-signature-ed25519']
     timestamp = event['headers']['x-signature-timestamp']
@@ -100,8 +79,10 @@ def interact(raw_request):
     match command_name:
         case "generate":
             if admin: 
+                send(f"Generating attendence code...", id, token)
                 minutes = int(data["options"][0]["value"])
-                send(f"Attendence Code is {generate_code(minutes)}.", id, token)
+                code = generate_code(minutes)
+                update(f"Attendence Code is {code}.", token)
             else: send("Only administrators can generate attendance codes", id, token)
         case "validate":
             code = str(data["options"][0]["value"])
@@ -117,7 +98,6 @@ def send(message, id, token):
         "type": 4,
         "data": {
             "content": message,
-            "flags" : 1 << 6
         }
     }
 
@@ -135,7 +115,6 @@ def update(message, token):
     # JSON data to send with the request
     data = {
         "content": message,
-        "flags" : 1 << 6
     }
 
     # Send the PATCH request
@@ -143,3 +122,24 @@ def update(message, token):
 
     print("Response status code: ")
     print(response.status_code)
+
+def generate_code(expiration_time: int) -> int:
+    code = secrets.randbelow(900000) + 100000
+
+    expire = datetime.now()
+    expire_time = timedelta(minutes=expiration_time)
+    expire = expire + expire_time
+
+    db.write_code(str(code), expire.strftime(DATETIME_FORMAT))
+    return code
+
+def validate_code(code: str) -> bool:
+    expiration = db.get_code_expiration(code)
+
+    valid = False
+    if expiration == None:
+        return valid
+
+    expiration = datetime.strptime(expiration, DATETIME_FORMAT)
+    valid = datetime.now() < expiration    
+    return valid

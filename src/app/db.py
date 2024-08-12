@@ -23,7 +23,6 @@ def get_code_expiration(code):
     dynamodb = boto3.resource("dynamodb", region_name='us-east-1')
     table = dynamodb.Table(CODE_TABLENAME)
 
-    print(code)
     response = table.get_item(Key={"codeID": code})
 
     expiration = None
