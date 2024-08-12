@@ -137,9 +137,8 @@ def validate_code(code: str) -> bool:
     expiration = db.get_code_expiration(code)
 
     valid = False
-    if expiration == None:
-        return valid
+    if expiration != None:
+        expiration = datetime.strptime(expiration, DATETIME_FORMAT)
+        valid = datetime.now() < expiration    
 
-    expiration = datetime.strptime(expiration, DATETIME_FORMAT)
-    valid = datetime.now() < expiration    
     return valid
