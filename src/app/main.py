@@ -77,6 +77,9 @@ def interact(raw_request):
     # The first parameter can be any string that you want to update the original message to. This is the only thing you need to change.
     # update(message: str, token)
     match command_name:
+        case "attend":
+            code = str(data["options"][0]["value"])
+            send(f"{validate_attendance(userID, code)}", id, token)
         case "generate":
             if admin: 
                 send(f"Generating attendence code...", id, token)
@@ -88,8 +91,8 @@ def interact(raw_request):
             code = str(data["options"][0]["value"])
             status = "valid" if validate_code(code) else "invalid"
             if admin: send(f"{code} is {status}.", id, token)
-            else: send("Only administrators can generate attendance codes", id, token) 
-    
+            else: send("Only administrators can generate attendance codes", id, token)  
+
 # Send a new message
 def send(message, id, token):
     url = f"https://discord.com/api/interactions/{id}/{token}/callback"
@@ -133,12 +136,33 @@ def generate_code(expiration_time: int) -> int:
     db.write_code(str(code), expire.strftime(DATETIME_FORMAT))
     return code
 
-def validate_code(code: str) -> bool:
+def validate_code(code: str, output_validation_str=False) -> bool | tuple:
     expiration = db.get_code_expiration(code)
 
     valid = False
     if expiration != None:
-        expiration = datetime.strptime(expiration, DATETIME_FORMAT)
-        valid = datetime.now() < expiration    
+        expiration_datetime = datetime.strptime(expiration, DATETIME_FORMAT)
+        valid = datetime.now() < expiration_datetime
+        if output_validation_str:
+            valid = (valid, code + '|' + expiration)
+
+    return valid
+
+def validate_attendance(userid: str, code: str) -> bool:
+    code_validation = validate_code(code, output_validation_str=True)
+
+    valid = False
+    if code_validation:    
+        active, validation_str = code_validation
+
+        if active:
+            user = db.get_user(userid)
+            if user != None:
+                if validation_str not in user['codes_used']: 
+                    valid = True
+                    db.update_users_attendance(userid, int(user["attendance"]) + 1, validation_str)
+            else:
+                db.create_user(userid, 1, validation_str)
+                valid = True
 
     return valid
