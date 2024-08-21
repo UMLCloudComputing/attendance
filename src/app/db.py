@@ -43,11 +43,9 @@ def get_user(userid):
 
     return data
 
-def create_user(userid, attendance_num=0, validation_str=None):
+def create_user(userid, attendance_num=0, codes_used=[]):
     dynamodb = boto3.resource("dynamodb", region_name='us-east-1')
     table = dynamodb.Table(USER_TABLENAME)
-
-    codes_used = [validation_str] if validation_str != None else []
 
     response = table.put_item(Item={
         "userID": userid,
@@ -60,14 +58,14 @@ def create_user(userid, attendance_num=0, validation_str=None):
     else:
         print(f"Error updating user {userid}...")    
 
-def update_users_attendance(userid, attendance_num, event_validation_str):
+def update_users_attendance(userid, attendance_num, event_serialization):
     dynamodb = boto3.resource("dynamodb", region_name='us-east-1')
     table = dynamodb.Table(USER_TABLENAME)
 
     response = table.update_item(
                 Key={'userID': userid},
                 UpdateExpression="SET codes_used = list_append(codes_used, :val), attendance = :val2",
-                ExpressionAttributeValues={":val": [event_validation_str], ":val2": str(attendance_num)}    
+                ExpressionAttributeValues={":val": [event_serialization], ":val2": str(attendance_num)}    
                 )
     
     if response['ResponseMetadata']['HTTPStatusCode'] == 200:

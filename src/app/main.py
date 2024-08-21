@@ -78,20 +78,26 @@ def interact(raw_request):
     # update(message: str, token)
     match command_name:
         case "attend":
+            send("Submitting attendance...", id, token)
             code = str(data["options"][0]["value"])
-            send(f"{validate_attendance(userID, code)}", id, token)
+            status = validate_attendance(userID, code)
+            if status:
+                message = "You have checked in. We hope you enjoy the event and thanks for coming."
+            else:
+                message = "The attendance code is either not valid or you have already checked in for this event!"
+            update(f"{message}", token)
         case "generate":
             if admin: 
-                send(f"Generating attendence code...", id, token)
+                send("Generating attendence code...", id, token)
                 minutes = int(data["options"][0]["value"])
                 code = generate_code(minutes)
-                update(f"Attendence Code is {code}.", token)
-            else: send("Only administrators can generate attendance codes", id, token)
+                update(f"Attendence Code is {code} and is valid for {minutes} minutes.", token)
+            else: send("Only administrators can generate attendance codes!", id, token)
         case "validate":
             code = str(data["options"][0]["value"])
             status = "valid" if validate_code(code) else "invalid"
             if admin: send(f"{code} is {status}.", id, token)
-            else: send("Only administrators can generate attendance codes", id, token)  
+            else: send("Only administrators can validate attendance codes!", id, token)  
 
 # Send a new message
 def send(message, id, token):
@@ -136,33 +142,33 @@ def generate_code(expiration_time: int) -> int:
     db.write_code(str(code), expire.strftime(DATETIME_FORMAT))
     return code
 
-def validate_code(code: str, output_validation_str=False) -> bool | tuple:
+def validate_code(code: str, output_serialized=False) -> bool | tuple:
     expiration = db.get_code_expiration(code)
 
     valid = False
     if expiration != None:
         expiration_datetime = datetime.strptime(expiration, DATETIME_FORMAT)
         valid = datetime.now() < expiration_datetime
-        if output_validation_str:
+        if output_serialized:
             valid = (valid, code + '|' + expiration)
 
     return valid
 
 def validate_attendance(userid: str, code: str) -> bool:
-    code_validation = validate_code(code, output_validation_str=True)
+    code_serialization = validate_code(code, output_serialized=True)
 
     valid = False
-    if code_validation:    
-        active, validation_str = code_validation
+    if code_serialization:    
+        active, serialized_code = code_serialization
 
         if active:
             user = db.get_user(userid)
             if user != None:
-                if validation_str not in user['codes_used']: 
+                if serialized_code not in user['codes_used']: 
                     valid = True
-                    db.update_users_attendance(userid, int(user["attendance"]) + 1, validation_str)
+                    db.update_users_attendance(userid, int(user["attendance"]) + 1, serialized_code)
             else:
-                db.create_user(userid, 1, validation_str)
+                db.create_user(userid, 1, [serialized_code])
                 valid = True
 
     return valid
