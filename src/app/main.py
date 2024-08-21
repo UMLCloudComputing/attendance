@@ -81,10 +81,10 @@ def interact(raw_request):
             send("Submitting attendance...", id, token)
             code = str(data["options"][0]["value"])
             status = validate_attendance(userID, code)
-            if status:
-                message = "You have checked in. We hope you enjoy the event and thanks for coming."
-            else:
-                message = "The attendance code is either not valid or you have already checked in for this event!"
+            match status:
+                case 0: message = "You have checked in. We hope you enjoy the event and thanks for coming!"
+                case 1: message = "The attendance code you have entered is expired."
+                case 2: message = "The attendance code you have entered you have already used."
             update(f"{message}", token)
         case "generate":
             if admin: 
@@ -155,9 +155,15 @@ def validate_code(code: str, output_serialized=False) -> bool | tuple:
     return valid
 
 def validate_attendance(userid: str, code: str) -> bool:
+    """
+    Outputs a status code depending on the user's status with the code.\n
+    0 - Valid\n
+    1 - Code is expired\n
+    2 - Code has already been used\n    
+    """
     code_serialization = validate_code(code, output_serialized=True)
 
-    valid = False
+    status = 2
     if code_serialization:    
         active, serialized_code = code_serialization
 
@@ -165,10 +171,13 @@ def validate_attendance(userid: str, code: str) -> bool:
             user = db.get_user(userid)
             if user != None:
                 if serialized_code not in user['codes_used']: 
-                    valid = True
+                    status = 0
                     db.update_users_attendance(userid, int(user["attendance"]) + 1, serialized_code)
             else:
                 db.create_user(userid, 1, [serialized_code])
-                valid = True
+                status = 0
+        else:
+            status = 1
 
-    return valid
+
+    return status
