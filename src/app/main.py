@@ -112,6 +112,12 @@ def interact(raw_request):
             status = "valid" if validate_code(code) else "invalid"
             if admin: send(f"{code} is {status}.", id, token)
             else: send("Only administrators can validate attendance codes!", id, token)  
+        case "stats":
+            pass
+        case "reset":
+            if admin:
+                pass
+            else: send("Only administrators can reset a user!", id, token)
 
 # Send a new message
 def send(message, id, token):
@@ -126,6 +132,24 @@ def send(message, id, token):
 
     response = requests.post(url, json=callback_data)
     
+    print("Response status code: ")
+    print(response.status_code)
+
+# Send an embed message
+# Documentation on embed objects: https://discord.com/developers/docs/resources/message#embed-object
+def send_embed(embeds: dict, id, token):
+    url = f"https://discord.com/api/interactions/{id}/{token}/callback"
+
+    callback_data = {
+        "type": 4,
+        "data": {
+            "tts": False,
+            "embeds": [embeds]            
+        }
+    }
+
+    response = requests.post(url, json=callback_data)
+
     print("Response status code: ")
     print(response.status_code)
 
