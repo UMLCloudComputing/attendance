@@ -60,3 +60,6 @@
       description: mention a user to get their stats (not required)
       type: 9 # mentionable
       required: false
+  
+- name: warmup
+  description: warm up the lambda function

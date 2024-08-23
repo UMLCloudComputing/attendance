@@ -86,7 +86,7 @@ def interact(raw_request):
     # update(message: str, token)
     match command_name:
         case "attend":
-            send("Submitting attendance...", id, token)
+            # send("Submitting attendance...", id, token)
             code = str(data["options"][0]["value"])
             type = str(data["options"][1]["value"])
             status = validate_attendance(userID, code, type)
@@ -99,14 +99,14 @@ def interact(raw_request):
                     message = "The attendance code you have entered you have already used."
                 case AttendanceStatus.NONEXISTENT:
                     message = "The attendance code you have entered does not exist."
-            update(f"{message}", token)
+            send(f"{message}", id, token)
         case "generate":
             if admin: 
-                send("Generating attendence code...", id, token)
+                # send("Generating attendence code...", id, token)
                 minutes = int(data["options"][0]["value"])
                 event_name = str(data["options"][1]["value"])
                 code = generate_code(minutes, event_name)
-                update(f"Attendence Code for {event_name} is {code} and is valid for {minutes} minutes.", token)
+                send(f"Attendence Code for {event_name} is {code} and is valid for {minutes} minutes.", id, token)
             else: send("Only administrators can generate attendance codes!", id, token)
         case "validate":
             code = str(data["options"][0]["value"])
@@ -122,10 +122,12 @@ def interact(raw_request):
             send_embed(embeds, id, token)
         case "reset":
             if admin:
-                send(f"Deleting specified user...", id, token)
+                # send(f"Deleting specified user...", id, token)
                 db.delete_user(data["options"][0]["value"])
-                update("Specified user has been reset.", token)
+                send("Specified user has been reset.", id, token)
             else: send("Only administrators can reset a user!", id, token)
+        case "warmup":
+            send("Warming up!", id, token)
 
 # Send a new message
 def send(message, id, token):
@@ -188,12 +190,11 @@ def generate_code(expiration_time: int, event_name: str) -> int:
     db.write_code(str(code), expire.strftime(DATETIME_FORMAT), event_name)
     return code
 
-def validate_code(code: str, expiration=None) -> bool | tuple:
-    if expiration != None:
-        code = db.get_code(code)
+def validate_code(code: str) -> bool | tuple:
+    code = db.get_code(code)
 
     valid = False
-    if code != None or expiration != None:
+    if code != None:
         expiration_datetime = datetime.strptime(code['expiration'], DATETIME_FORMAT)
         valid = datetime.now() < expiration_datetime
 
@@ -206,8 +207,9 @@ def validate_attendance(userid: str, code: str, type: str) -> AttendanceStatus:
     code_response = db.get_code(code)
 
     status = AttendanceStatus.NONEXISTENT
-    if code_response:    
-        active = validate_code(code, expiration=code_response['expiration'])
+    if code_response:
+        expiration_datetime = datetime.strptime(code_response['expiration'], DATETIME_FORMAT)
+        active = datetime.now() < expiration_datetime
 
         if active:
             user = db.get_user(userid)
