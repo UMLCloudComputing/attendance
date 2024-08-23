@@ -9,6 +9,7 @@ import secrets
 from enum import Enum
 
 DISCORD_PUBLIC_KEY = os.environ.get("DISCORD_PUBLIC_KEY")
+DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 
 class AttendanceStatus(Enum):
@@ -113,7 +114,10 @@ def interact(raw_request):
             if admin: send(f"{code} is {status}.", id, token)
             else: send("Only administrators can validate attendance codes!", id, token)  
         case "stats":
-            user = raw_request["member"]["user"]
+            if data["options"][0]["value"]:
+                user = get_mentioned_user(data["options"][0]["value"])
+            else: 
+                user = raw_request["member"]["user"]
             embeds = build_stats_embed(user)
             send_embed(embeds, id, token)
         case "reset":
@@ -228,23 +232,34 @@ def build_stats_embed(user):
         "url": f"https://cdn.discordapp.com/avatars/{user['id']}/{user['avatar']}.png"
     }
     embeds['color'] = 0x5494de
+    embeds['title'] = f"{user['username']}'s Attendance Stats" 
 
     # Add Information from Dynamo DB table to embed
     user_stats = db.get_user(user['id'])
-    embeds['title'] = f"{user['username']}'s Attendance Stats" 
-    embeds['description'] = f"Total Attendance: {user_stats['attendance']}"
+    if user_stats != None:
+        embeds['description'] = f"Total Attendance: {user_stats['attendance']}"
 
-    # Deserialize event information
-    embeds['fields'] = []
-    i = len(user_stats["events_attended"]) - 1
-    while len(embeds['fields']) < 25 and i >= 0:
-        event_deserialized = user_stats['events_attended'][i].split('|')
-        embeds['fields'].append({
-            'name': event_deserialized[0],
-            'value': event_deserialized[1],
-            'inline': True
-        })
+        # Deserialize event information
+        embeds['fields'] = []
+        i = len(user_stats["events_attended"]) - 1
+        while len(embeds['fields']) < 25 and i >= 0:
+            event_deserialized = user_stats['events_attended'][i].split('|')
+            embeds['fields'].append({
+                'name': event_deserialized[0],
+                'value': event_deserialized[1],
+                'inline': True
+            })
 
-        i -= 1
+            i -= 1
+    else:
+        embeds['description'] = f"{user['username']} has not attended any events."
 
     return embeds
+
+def get_mentioned_user(userid):
+    headers = {
+        "Authorization": f"Bot {DISCORD_TOKEN}"
+    }
+    response = requests.get(f"https://discord.com/api/users/{userid}", headers=headers)
+
+    return response.json()
