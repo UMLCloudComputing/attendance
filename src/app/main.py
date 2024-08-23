@@ -6,9 +6,17 @@ from datetime import datetime, timedelta
 from nacl.signing import VerifyKey
 from nacl.exceptions import BadSignatureError
 import secrets
+from enum import Enum
 
 DISCORD_PUBLIC_KEY = os.environ.get("DISCORD_PUBLIC_KEY")
+DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
+
+class AttendanceStatus(Enum):
+    VALID = 0
+    EXPIRED = 1
+    USED = 2
+    NONEXISTENT = 3
 
 def verify(event):
     signature = event['headers']['x-signature-ed25519']
@@ -80,24 +88,44 @@ def interact(raw_request):
         case "attend":
             send("Submitting attendance...", id, token)
             code = str(data["options"][0]["value"])
-            status = validate_attendance(userID, code)
+            type = str(data["options"][1]["value"])
+            status = validate_attendance(userID, code, type)
             match status:
-                case 0: message = "You have checked in. We hope you enjoy the event and thanks for coming!"
-                case 1: message = "The attendance code you have entered is expired."
-                case 2: message = "The attendance code you have entered you have already used."
+                case AttendanceStatus.VALID: 
+                    message = "You have checked in. We hope you enjoy the event and thanks for coming!"
+                case AttendanceStatus.EXPIRED: 
+                    message = "The attendance code you have entered is expired."
+                case AttendanceStatus.USED: 
+                    message = "The attendance code you have entered you have already used."
+                case AttendanceStatus.NONEXISTENT:
+                    message = "The attendance code you have entered does not exist."
             update(f"{message}", token)
         case "generate":
             if admin: 
                 send("Generating attendence code...", id, token)
                 minutes = int(data["options"][0]["value"])
-                code = generate_code(minutes)
-                update(f"Attendence Code is {code} and is valid for {minutes} minutes.", token)
+                event_name = str(data["options"][1]["value"])
+                code = generate_code(minutes, event_name)
+                update(f"Attendence Code for {event_name} is {code} and is valid for {minutes} minutes.", token)
             else: send("Only administrators can generate attendance codes!", id, token)
         case "validate":
             code = str(data["options"][0]["value"])
             status = "valid" if validate_code(code) else "invalid"
             if admin: send(f"{code} is {status}.", id, token)
             else: send("Only administrators can validate attendance codes!", id, token)  
+        case "stats":
+            try:
+                user = get_mentioned_user(data["options"][0]["value"])
+            except: 
+                user = raw_request["member"]["user"]
+            embeds = build_stats_embed(user)
+            send_embed(embeds, id, token)
+        case "reset":
+            if admin:
+                send(f"Deleting specified user...", id, token)
+                db.delete_user(data["options"][0]["value"])
+                update("Specified user has been reset.", token)
+            else: send("Only administrators can reset a user!", id, token)
 
 # Send a new message
 def send(message, id, token):
@@ -112,6 +140,24 @@ def send(message, id, token):
 
     response = requests.post(url, json=callback_data)
     
+    print("Response status code: ")
+    print(response.status_code)
+
+# Send an embed message
+# Documentation on embed objects: https://discord.com/developers/docs/resources/message#embed-object
+def send_embed(embeds: dict, id, token):
+    url = f"https://discord.com/api/interactions/{id}/{token}/callback"
+
+    callback_data = {
+        "type": 4,
+        "data": {
+            "tts": False,
+            "embeds": [embeds]            
+        }
+    }
+
+    response = requests.post(url, json=callback_data)
+
     print("Response status code: ")
     print(response.status_code)
 
@@ -132,52 +178,90 @@ def update(message, token):
     print("Response status code: ")
     print(response.status_code)
 
-def generate_code(expiration_time: int) -> int:
+def generate_code(expiration_time: int, event_name: str) -> int:
     code = secrets.randbelow(900000) + 100000
 
     expire = datetime.now()
     expire_time = timedelta(minutes=expiration_time)
     expire = expire + expire_time
 
-    db.write_code(str(code), expire.strftime(DATETIME_FORMAT))
+    db.write_code(str(code), expire.strftime(DATETIME_FORMAT), event_name)
     return code
 
-def validate_code(code: str, output_serialized=False) -> bool | tuple:
-    expiration = db.get_code_expiration(code)
+def validate_code(code: str, expiration=None) -> bool | tuple:
+    if expiration != None:
+        code = db.get_code(code)
 
     valid = False
-    if expiration != None:
-        expiration_datetime = datetime.strptime(expiration, DATETIME_FORMAT)
+    if code != None or expiration != None:
+        expiration_datetime = datetime.strptime(code['expiration'], DATETIME_FORMAT)
         valid = datetime.now() < expiration_datetime
-        if output_serialized:
-            valid = (valid, code + '|' + expiration)
 
     return valid
 
-def validate_attendance(userid: str, code: str) -> bool:
+def validate_attendance(userid: str, code: str, type: str) -> AttendanceStatus:
     """
-    Outputs a status code depending on the user's status with the code.\n
-    0 - Valid\n
-    1 - Code is expired\n
-    2 - Code has already been used\n    
+    Outputs a status code enum depending on the user's status with the code.\n
     """
-    code_serialization = validate_code(code, output_serialized=True)
+    code_response = db.get_code(code)
 
-    status = 2
-    if code_serialization:    
-        active, serialized_code = code_serialization
+    status = AttendanceStatus.NONEXISTENT
+    if code_response:    
+        active = validate_code(code, expiration=code_response['expiration'])
 
         if active:
             user = db.get_user(userid)
+            serialized_code = code + '|' + code_response['expiration']
+            serialized_event = code_response['event_name'] + '|' + type
             if user != None:
                 if serialized_code not in user['codes_used']: 
-                    status = 0
-                    db.update_users_attendance(userid, int(user["attendance"]) + 1, serialized_code)
+                    status = AttendanceStatus.VALID
+                    db.update_user(userid, int(user['attendance']) + 1, serialized_code, serialized_event)
+                else:
+                    status = AttendanceStatus.USED
             else:
-                db.create_user(userid, 1, [serialized_code])
-                status = 0
+                db.create_user(userid, 1, [serialized_code], [serialized_event])
+                status = AttendanceStatus.VALID
         else:
-            status = 1
-
+            status = AttendanceStatus.EXPIRED
 
     return status
+
+def build_stats_embed(user):
+    embeds = dict()
+
+    embeds['thumbnail'] = {
+        "url": f"https://cdn.discordapp.com/avatars/{user['id']}/{user['avatar']}.png"
+    }
+    embeds['color'] = 0x5494de
+    embeds['title'] = f"{user['username']}'s Attendance Stats" 
+
+    # Add Information from Dynamo DB table to embed
+    user_stats = db.get_user(user['id'])
+    if user_stats != None:
+        embeds['description'] = f"Total Attendance: {user_stats['attendance']}"
+
+        # Deserialize event information
+        embeds['fields'] = []
+        i = len(user_stats["events_attended"]) - 1
+        while len(embeds['fields']) < 25 and i >= 0:
+            event_deserialized = user_stats['events_attended'][i].split('|')
+            embeds['fields'].append({
+                'name': event_deserialized[0],
+                'value': event_deserialized[1],
+                'inline': True
+            })
+
+            i -= 1
+    else:
+        embeds['description'] = f"{user['username']} has not attended any events."
+
+    return embeds
+
+def get_mentioned_user(userid):
+    headers = {
+        "Authorization": f"Bot {DISCORD_TOKEN}"
+    }
+    response = requests.get(f"https://discord.com/api/users/{userid}", headers=headers)
+
+    return response.json()

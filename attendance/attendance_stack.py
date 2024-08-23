@@ -25,7 +25,8 @@ class AttendanceStack(Stack):
             function_name=construct_id,
             environment= {
                 "DISCORD_PUBLIC_KEY" : os.getenv('DISCORD_PUBLIC_KEY'),
-                "ID" : os.getenv('ID'),
+                "DISCORD_ID" : os.getenv('ID'),
+                "DISCORD_TOKEN" : os.getenv('TOKEN'),
                 "DYNAMO_USERTABLE" : user_table.table_name,
                 "DYNAMO_CODETABLE" : code_table.table_name
             },            

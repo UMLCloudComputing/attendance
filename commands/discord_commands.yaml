@@ -9,23 +9,36 @@
 #       required: true
 
 - name: attend
-  description: Attend an event with the given code. You only get three attempts. You can only attend an event once.
+  description: attend an event with the given code, you can only attend an event once.
   options:
     - name: code
-      description: Event Code
+      description: event code
+      type: 3 # string
+      required: true
+    - name: type
+      description: how you attended the event
+      type: 3 # string
+      required: true
+      choices: 
+        - name: Virtual
+          value: Virtual
+        - name: In Person
+          value: In Person
+
+- name: generate
+  description: denerates an attendence code. can only be used by admins.
+  options:
+    - name: expire_in
+      description: set when the code expires (in minutes from now)
+      type: 4 #int 
+      required: true
+    - name: event_name
+      description: set the event name
       type: 3 # string
       required: true
 
-- name: generate
-  description: Generates an attendence code. Can only be used by Guild Administrators.
-  options:
-    - name: expire_in
-      description: Set when the code expires (in minutes from now)
-      type: 4 #int 
-      required: true
-
 - name: validate
-  description: Check if an attendence code is valid. Can only be used by Guild Administrators.
+  description: check if an attendence code is valid. Can only be used by admins.
   options:
     - name: code
       description: Event code
@@ -33,7 +46,17 @@
       required: true
 
 - name: reset
-  description: Reset a user's statistics
+  description: reset a user's statistics only can be used by admins.
+  options:
+    - name: user
+      description: mention a user to reset their stats
+      type: 9 # mentionable
+      required: true
 
 - name: stats
-  description: Get a user's statistics
+  description: get a user's statistics
+  options:
+    - name: user
+      description: mention a user to get their stats (not required)
+      type: 9 # mentionable
+      required: false
