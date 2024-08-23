@@ -21,9 +21,9 @@
       required: true
       choices: 
         - name: Virtual
-          value: virtual
+          value: Virtual
         - name: In Person
-          value: in_person
+          value: In Person
 
 - name: generate
   description: denerates an attendence code. can only be used by admins.

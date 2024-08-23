@@ -113,7 +113,9 @@ def interact(raw_request):
             if admin: send(f"{code} is {status}.", id, token)
             else: send("Only administrators can validate attendance codes!", id, token)  
         case "stats":
-            pass
+            user = raw_request["member"]["user"]
+            embeds = build_stats_embed(user)
+            send_embed(embeds, id, token)
         case "reset":
             if admin:
                 pass
@@ -218,3 +220,31 @@ def validate_attendance(userid: str, code: str, type: str) -> AttendanceStatus:
             status = AttendanceStatus.EXPIRED
 
     return status
+
+def build_stats_embed(user):
+    embeds = dict()
+
+    embeds['thumbnail'] = {
+        "url": f"https://cdn.discordapp.com/avatars/{user['id']}/{user['avatar']}.png"
+    }
+    embeds['color'] = 0x5494de
+
+    # Add Information from Dynamo DB table to embed
+    user_stats = db.get_user(user['id'])
+    embeds['title'] = f"{user['username']}'s Attendance Stats" 
+    embeds['description'] = f"Total Attendance: {user_stats['attendance']}"
+
+    # Deserialize event information
+    embeds['fields'] = []
+    i = len(user_stats["events_attended"]) - 1
+    while len(embeds['fields']) < 25 and i >= 0:
+        event_deserialized = user_stats['events_attended'][i].split('|')
+        embeds['fields'].append({
+            'name': event_deserialized[0],
+            'value': event_deserialized[1],
+            'inline': True
+        })
+
+        i -= 1
+
+    return embeds
