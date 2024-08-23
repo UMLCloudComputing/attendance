@@ -114,15 +114,17 @@ def interact(raw_request):
             if admin: send(f"{code} is {status}.", id, token)
             else: send("Only administrators can validate attendance codes!", id, token)  
         case "stats":
-            if data["options"][0]["value"]:
+            try:
                 user = get_mentioned_user(data["options"][0]["value"])
-            else: 
+            except: 
                 user = raw_request["member"]["user"]
             embeds = build_stats_embed(user)
             send_embed(embeds, id, token)
         case "reset":
             if admin:
-                pass
+                send(f"Deleting specified user...", id, token)
+                db.delete_user(data["options"][0]["value"])
+                update("Specified user has been reset.", token)
             else: send("Only administrators can reset a user!", id, token)
 
 # Send a new message

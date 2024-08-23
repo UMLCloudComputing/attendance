@@ -75,5 +75,13 @@ def update_user(userid, attendance_num, serialized_code, serialized_event):
     else:
         print(f"Error updating user {userid}...")
 
-def reset_user(userid):
-    pass
+def delete_user(userid):
+    dynamodb = boto3.resource("dynamodb")
+    table = dynamodb.Table(USER_TABLENAME)
+
+    response = table.delete_item(Key={'userID': userid})
+
+    if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+        print(f"User {userid} deleted successfully.")
+    else:
+        print(f"Error updating user {userid}...")
