@@ -32,6 +32,7 @@ jobs:
         TOKEN: ${{secrets.TOKEN}}
         AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY_ID}}
         AWS_SECRET_ACCESS_KEY: ${{secrets.AWS_SECRET_ACCESS_KEY}}
+        SSM_PARAMETER_NAME: ${{secrets.SSM_PARAMETER_NAME}}
 
     - name: Deploy
       run: cdk deploy --all --require-approval never
@@ -39,9 +40,10 @@ jobs:
         APP_NAME: ${{secrets.APP_NAME}}
         DISCORD_PUBLIC_KEY: ${{ secrets.DISCORD_PUBLIC_KEY }}
         ID: ${{secrets.ID}}
-        TOKEN: ${{secrets.ID}}
+        TOKEN: ${{secrets.TOKEN}}
         AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY_ID}}
         AWS_SECRET_ACCESS_KEY: ${{secrets.AWS_SECRET_ACCESS_KEY}}
+        SSM_PARAMETER_NAME: ${{secrets.SSM_PARAMETER_NAME}}
 
     - name: Register & Delete Commands
       run: cd commands && python3 register_commands.py
