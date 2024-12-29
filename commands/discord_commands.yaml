@@ -45,6 +45,22 @@
       type: 3 # string
       required: true
 
+- name: set_semester
+  description: set the semester that it currently is. (admins only)
+  options:
+    - name: semester
+      description: name of the semester
+      type: 3 # string
+      required: true
+
+- name: generate_report
+  description: generate a report for a semester (admins only)
+  options:
+    - name: semester
+      description: semester to query
+      type: 3 # string
+      required: true
+
 - name: reset
   description: reset a user's statistics only can be used by admins.
   options:
