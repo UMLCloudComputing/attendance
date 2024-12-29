@@ -1,4 +1,5 @@
 import os
+import io
 import requests
 import json
 import db
@@ -7,6 +8,8 @@ from nacl.signing import VerifyKey
 from nacl.exceptions import BadSignatureError
 import secrets
 from enum import Enum
+from parameter import get_ssm_parameter, set_ssm_parameter
+from report import generate_report
 
 DISCORD_PUBLIC_KEY = os.environ.get("DISCORD_PUBLIC_KEY")
 DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")
@@ -61,6 +64,9 @@ def interact(raw_request):
 
     # The ID of the Guild in which the bot resides in
     guildID = raw_request["guild_id"]
+
+    # The ID of the channel in which the interaction happened
+    channelID = raw_request["channel_id"]
 
     # A boolean variable that determines if the user who executed the command is an administrator or not
     admin = (int(raw_request["member"]["permissions"]) & 0x8) == 0x8
@@ -120,6 +126,18 @@ def interact(raw_request):
                 user = raw_request["member"]["user"]
             embeds = build_stats_embed(user)
             send_embed(embeds, id, token)
+        case "set_semester":
+            if admin: 
+                semester = str(data["options"][0]["value"])
+                set_ssm_parameter(semester)
+                send(f"The semester has been set to {semester} successfully.", id, token)
+            else: send("Only administrators can set the semester!", id, token)
+        case "generate_report":
+            if admin:
+                semester = str(data["options"][0]["value"])
+                filename = generate_report(semester)
+                send_file(filename, id, token)
+            else: send("Only administrators can generate reports!", id, token)
         case "reset":
             if admin:
                 # send(f"Deleting specified user...", id, token)
@@ -214,7 +232,7 @@ def validate_attendance(userid: str, code: str, type: str) -> AttendanceStatus:
         if active:
             user = db.get_user(userid)
             serialized_code = code + '|' + code_response['expiration']
-            serialized_event = code_response['event_name'] + '|' + type
+            serialized_event = code_response['event_name'] + '|' + type + '|' + get_ssm_parameter()
             if user != None:
                 if serialized_code not in user['codes_used']: 
                     status = AttendanceStatus.VALID
@@ -248,9 +266,14 @@ def build_stats_embed(user):
         i = len(user_stats["events_attended"]) - 1
         while len(embeds['fields']) < 25 and i >= 0:
             event_deserialized = user_stats['events_attended'][i].split('|')
+            try:
+                semester = event_deserialized[2]
+            except:
+                semester = "Fall 2024"
+
             embeds['fields'].append({
                 'name': event_deserialized[0],
-                'value': event_deserialized[1],
+                'value': event_deserialized[1] + f" ({semester})",
                 'inline': True
             })
 
@@ -267,3 +290,25 @@ def get_mentioned_user(userid):
     response = requests.get(f"https://discord.com/api/users/{userid}", headers=headers)
 
     return response.json()
+
+def send_file(filename: str, id, token):
+    url = f"https://discord.com/api/interactions/{id}/{token}/callback"
+    
+    with open(filename, 'rb') as fp:
+        callback_data = {
+            "type": 4,
+            "data": {
+                "content": "Here is the requested report.",
+            }
+        }
+
+        response = requests.post(
+            url,
+            data={"payload_json": json.dumps(callback_data)},
+            files={
+                "file": (filename, fp, 'text/csv')
+            }
+        )
+        
+        print("Response status: code: ")
+        print(response.status_code)

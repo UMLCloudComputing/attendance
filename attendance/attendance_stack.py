@@ -4,7 +4,8 @@ from aws_cdk import (
     Duration,
     aws_dynamodb as dynamodb,
     aws_lambda as _lambda,
-    aws_apigateway as apigateway
+    aws_apigateway as apigateway,
+    aws_ssm as ssm,
 )
 import os
 from constructs import Construct
@@ -28,7 +29,8 @@ class AttendanceStack(Stack):
                 "DISCORD_ID" : os.getenv('ID'),
                 "DISCORD_TOKEN" : os.getenv('TOKEN'),
                 "DYNAMO_USERTABLE" : user_table.table_name,
-                "DYNAMO_CODETABLE" : code_table.table_name
+                "DYNAMO_CODETABLE" : code_table.table_name,
+                "SSM_PARAMETER_NAME" : os.getenv('SSM_PARAMETER_NAME')
             },            
             code=_lambda.DockerImageCode.from_image_asset(
                 directory="src"
@@ -40,6 +42,15 @@ class AttendanceStack(Stack):
             handler=dockerFunc,
             proxy=True,
         )
+        
+        parameter = ssm.StringParameter.from_string_parameter_name(
+            self, 
+            f'SSMParameter{construct_id}',
+            string_parameter_name=os.getenv('SSM_PARAMETER_NAME')
+        )
+
+        parameter.grant_read(dockerFunc.role)
+        parameter.grant_write(dockerFunc.role)
 
         user_table.grant_read_write_data(dockerFunc.role)
         code_table.grant_read_write_data(dockerFunc.role)
