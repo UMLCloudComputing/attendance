@@ -136,7 +136,7 @@ def interact(raw_request):
             if admin:
                 semester = str(data["options"][0]["value"])
                 filename = generate_report(semester)
-                send_file(filename, channelID, id, token)
+                send_file(filename, id, token)
             else: send("Only administrators can generate reports!", id, token)
         case "reset":
             if admin:
@@ -291,7 +291,7 @@ def get_mentioned_user(userid):
 
     return response.json()
 
-def send_file(filename: str, channelID, id, token):
+def send_file(filename: str, id, token):
     url = f"https://discord.com/api/interactions/{id}/{token}/callback"
     
     with open(filename, 'rb') as fp:
