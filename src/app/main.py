@@ -1,4 +1,5 @@
 import os
+import io
 import requests
 import json
 import db
@@ -8,6 +9,7 @@ from nacl.exceptions import BadSignatureError
 import secrets
 from enum import Enum
 from parameter import get_ssm_parameter, set_ssm_parameter
+from report import generate_report
 
 DISCORD_PUBLIC_KEY = os.environ.get("DISCORD_PUBLIC_KEY")
 DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")
@@ -62,6 +64,9 @@ def interact(raw_request):
 
     # The ID of the Guild in which the bot resides in
     guildID = raw_request["guild_id"]
+
+    # The ID of the channel in which the interaction happened
+    channelID = raw_request["channel_id"]
 
     # A boolean variable that determines if the user who executed the command is an administrator or not
     admin = (int(raw_request["member"]["permissions"]) & 0x8) == 0x8
@@ -127,6 +132,12 @@ def interact(raw_request):
                 set_ssm_parameter(semester)
                 send(f"The semester has been set to {semester} successfully.", id, token)
             else: send("Only administrators can set the semester!", id, token)
+        case "generate_report":
+            if admin:
+                semester = str(data["options"][0]["value"])
+                filename = generate_report(semester)
+                send_file(filename, channelID, id, token)
+            else: send("Only administrators can generate reports!", id, token)
         case "reset":
             if admin:
                 # send(f"Deleting specified user...", id, token)
@@ -279,3 +290,63 @@ def get_mentioned_user(userid):
     response = requests.get(f"https://discord.com/api/users/{userid}", headers=headers)
 
     return response.json()
+
+def send_file(filename: str, channelID, id, token):
+    url = f"https://discord.com/api/interactions/{id}/{token}/callback"
+    
+    with open(filename, 'rb') as fp:
+        fp.seek(0, io.SEEK_END)
+        fp_size = fp.tell()
+        fp.seek(0)
+
+        callback_data = {
+            "type": 4,
+            "data": {
+                "content": "Here is the requested report.",
+            }
+        }
+
+        response = requests.post(
+            url,
+            data={"payload_json": json.dumps(callback_data)},
+            files={
+                "file": (filename, fp, 'text/csv')
+            }
+        )
+        
+        print("Response status: code: ")
+        print(response.status_code)
+        print(response.json())
+
+        # attachment_data = {
+        #     "files": [{
+        #         'filename': filename,
+        #         'file_size': str(fp_size),
+        #         'id': 1
+        #     }]            
+        # }
+
+        # response = requests.post(
+        #     url, 
+        #     headers={
+        #         "Authorization": f"Bot {DISCORD_TOKEN}"
+        #     },
+        #     json=attachment_data
+        # )
+        # print(response.json())
+        # response.raise_for_status()
+        
+        # attachment_info = response.json()["attachments"][0]
+        # upload_url = attachment_info["upload_url"]
+        # upload_response = requests.put(
+        #     upload_url,
+        #     headers={
+        #         "Content-Length": str(fp_size),
+        #         "Content-Type": "text/csv",
+        #         "authorization": DISCORD_TOKEN
+        #     },
+        #     data=fp
+        # )
+
+        # print("Response status code: ")
+        # print(upload_response.status_code)
