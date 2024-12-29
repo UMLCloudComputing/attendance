@@ -295,10 +295,6 @@ def send_file(filename: str, channelID, id, token):
     url = f"https://discord.com/api/interactions/{id}/{token}/callback"
     
     with open(filename, 'rb') as fp:
-        fp.seek(0, io.SEEK_END)
-        fp_size = fp.tell()
-        fp.seek(0)
-
         callback_data = {
             "type": 4,
             "data": {
@@ -316,37 +312,3 @@ def send_file(filename: str, channelID, id, token):
         
         print("Response status: code: ")
         print(response.status_code)
-        print(response.json())
-
-        # attachment_data = {
-        #     "files": [{
-        #         'filename': filename,
-        #         'file_size': str(fp_size),
-        #         'id': 1
-        #     }]            
-        # }
-
-        # response = requests.post(
-        #     url, 
-        #     headers={
-        #         "Authorization": f"Bot {DISCORD_TOKEN}"
-        #     },
-        #     json=attachment_data
-        # )
-        # print(response.json())
-        # response.raise_for_status()
-        
-        # attachment_info = response.json()["attachments"][0]
-        # upload_url = attachment_info["upload_url"]
-        # upload_response = requests.put(
-        #     upload_url,
-        #     headers={
-        #         "Content-Length": str(fp_size),
-        #         "Content-Type": "text/csv",
-        #         "authorization": DISCORD_TOKEN
-        #     },
-        #     data=fp
-        # )
-
-        # print("Response status code: ")
-        # print(upload_response.status_code)
