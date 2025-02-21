@@ -69,7 +69,7 @@ def interact(raw_request):
     channelID = raw_request["channel_id"]
 
     # A boolean variable that determines if the user who executed the command is an administrator or not
-    admin = (int(raw_request["member"]["permissions"]) & 0x8) == 0x8
+    admin = (int(raw_request["member"]["permissions"]) & 0x20000038) > 0
 
     # The command being executed
     command_name = data["name"]
